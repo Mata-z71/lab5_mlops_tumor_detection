@@ -1,3 +1,4 @@
+numpy 
 pandas
 jupyter
 seaborn
@@ -6,4 +7,7 @@ keras
 tensorflow
 opencv-python
 scikit-image
+mlflow
+pyarrow
+
 tqdm
