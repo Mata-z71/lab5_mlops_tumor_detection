@@ -1,0 +1,15 @@
+name: extract-features-env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      - numpy
+      - pandas
+      - scikit-image
+      - scipy
+      - opencv-python-headless
+      - tqdm
+      - mlflow
