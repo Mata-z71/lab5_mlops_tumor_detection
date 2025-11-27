@@ -2,10 +2,10 @@
 
 from pathlib import Path
 
-import cv2
 import numpy as np
 from scipy import ndimage as nd
 
+from skimage import io
 from skimage.morphology import disk
 from skimage.filters.rank import entropy
 from skimage.filters import sobel, gabor, hessian, prewitt
@@ -13,9 +13,14 @@ from skimage.feature import graycomatrix, graycoprops
 
 
 def _normalize_uint8(image: np.ndarray) -> np.ndarray:
-    """Normalize any image to 0–255 uint8."""
+    """Normalize any image to 0–255 uint8 (NumPy 2.0 compatible)."""
     img = image.astype(np.float32)
-    img = (img - img.min()) / (img.ptp() + 1e-8)
+    # np.ptp(img) = img.max() - img.min()
+    denom = np.ptp(img)
+    if denom == 0:
+        # Avoid division by zero for constant images
+        return np.zeros_like(img, dtype=np.uint8)
+    img = (img - img.min()) / (denom + 1e-8)
     return (img * 255).astype(np.uint8)
 
 
@@ -40,8 +45,14 @@ def _glcm_features(image: np.ndarray, prefix: str) -> dict:
         normed=True,
     )
 
-    props = ["contrast", "dissimilarity", "homogeneity",
-             "energy", "correlation", "ASM"]
+    props = [
+        "contrast",
+        "dissimilarity",
+        "homogeneity",
+        "energy",
+        "correlation",
+        "ASM",
+    ]
 
     feats = {}
     for prop in props:
@@ -52,7 +63,7 @@ def _glcm_features(image: np.ndarray, prefix: str) -> dict:
 
 
 def _basic_stats(image: np.ndarray, prefix: str) -> dict:
-    """Basic statistics (mean, std, min, max) to add a few extra features."""
+    """Basic statistics (mean, std, min, max) to add extra features."""
     arr = image.astype(float)
     return {
         f"{prefix}_mean": float(arr.mean()),
@@ -72,12 +83,16 @@ def compute_image_features(image_path: str) -> dict:
     => 7 filters × (24 + 4) = 196 features per image.
     """
     path = Path(image_path)
-    img = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+
+    # Use skimage.io to read as grayscale (robust on Windows paths)
+    img = io.imread(str(path), as_gray=True)
     if img is None:
         raise ValueError(f"Could not read image: {image_path}")
 
+    img = img.astype(np.float32)
+
     # Filters
-    entropy_img = entropy(img, disk(2))
+    entropy_img = entropy(_normalize_uint8(img), disk(2))
     gaussian_img = nd.gaussian_filter(img, sigma=1)
     sobel_img = sobel(img)
     gabor_img = gabor(img, frequency=0.9)[1]
