@@ -1,0 +1,26 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+
+name: extract_features_component
+display_name: Extract MRI Features (Silver)
+version: 1
+type: command
+
+inputs:
+  input_data:
+    type: uri_folder
+
+outputs:
+  output_parquet:
+    type: uri_file
+
+# YAML is inside components/, code is in lab5 root
+code: ..
+
+environment:
+  conda_file: ../envs/extract_features_env.yml
+  image: mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu20.04:latest
+
+command: >-
+  python extract_features.py
+  --input_data ${{inputs.input_data}}
+  --output_parquet ${{outputs.output_parquet}}
