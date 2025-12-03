@@ -1,44 +1,56 @@
-from azure.identity import DefaultAzureCredential
-from azure.ai.ml import MLClient, Input
-from azure.ai.ml import load_component
+# run_extract_features_job.py
+#
+# Phase 2 – Silver Layer: Submit feature extraction as a simple CommandJob
+# NO function-style component call, so NO unexpected keyword errors.
 
-# 🔧 FILL THESE with your own values
-SUBSCRIPTION_ID = "<YOUR_SUBSCRIPTION_ID>"
-RESOURCE_GROUP = "<YOUR_RESOURCE_GROUP>"
-WORKSPACE_NAME = "<YOUR_WORKSPACE_NAME>"
+from azure.ai.ml import MLClient, command, Input, Output
+from azure.identity import InteractiveBrowserCredential
 
-def main():
-    # 1) Connect to your Azure ML workspace
-    ml_client = MLClient(
-        credential=DefaultAzureCredential(),
-        subscription_id=SUBSCRIPTION_ID,
-        resource_group_name=RESOURCE_GROUP,
-        workspace_name=WORKSPACE_NAME,
-    )
+COMPUTE_TARGET = "Standard-E4ds-v4"
+# -------------------------------------------------------
 
-    # 2) Load the component definition from YAML
-    extract_features = load_component("components/extract_features_component.yml")
+# 1) Connect to Azure ML workspace
+ml_client = MLClient.from_config(
+    credential=InteractiveBrowserCredential()
+)
 
-    # 3) Create a job from the component
-    job = extract_features(
-        input_data=Input(
+# 2) Define the CommandJob directly
+job = command(
+    display_name="Silver - Tumor Image Feature Extraction",
+    experiment_name="lab5_silver_feature_extraction",
+
+    code="./src",  # folder that contains extract_features.py
+
+    command=(
+        "python extract_features.py "
+        "--input_data ${{inputs.input_data}} "
+        "--output_features ${{outputs.output_features}}"
+    ),
+
+    environment="azureml:tumor-lab5-env:1",
+
+    inputs={
+        "input_data": Input(
             type="uri_folder",
-            # 👇 Use your actual data asset name + version
-            path="azureml:tumor_image_raw:1",
+            path="azureml:tumor_images_raw:1"
         ),
-        # Azure ML will create output_parquet in default datastore
-        output_parquet=None,
-    )
+    },
 
-    # 4) Submit the job
-    returned_job = ml_client.jobs.create_or_update(
-        job,
-        experiment_name="lab5_extract_features",
-    )
+    outputs={
+        "output_features": Output(
+            type="uri_file",
+            path="azureml://datastores/workspaceblobstore/paths/silver/features.parquet"
+        ),
+    },
 
-    print(f"Job submitted. Name: {returned_job.name}")
-    print(f"Status: {returned_job.status}")
+    compute=COMPUTE_TARGET,
+)
 
+# 3) Submit job
+returned_job = ml_client.jobs.create_or_update(job)
 
-if __name__ == "__main__":
-    main()
+print("==============================================")
+print("✅ Silver feature extraction job submitted!")
+print("Job name:", returned_job.name)
+print("Status:", returned_job.status)
+print("==============================================")
