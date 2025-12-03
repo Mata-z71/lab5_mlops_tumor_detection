@@ -9,5 +9,7 @@ opencv-python
 scikit-image
 mlflow
 pyarrow
-
+azure-storage-file-datalake
+azure-storage-blob
+azure-identity
 tqdm
